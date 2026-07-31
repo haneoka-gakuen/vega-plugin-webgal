@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: vega-plugin-webgal
+      - uses: actions/checkout@v7
+        with:
+          repository: haneoka-gakuen/vega
+          path: vega-plugin-webgal/.dependencies/vega
+      - uses: actions/checkout@v7
+        with:
+          repository: haneoka-gakuen/vega-renderer-pixi
+          path: vega-plugin-webgal/.dependencies/vega-renderer-pixi
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.14.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: vega-plugin-webgal/pnpm-lock.yaml
+      - working-directory: vega-plugin-webgal
+        run: pnpm install --frozen-lockfile
+      - working-directory: vega-plugin-webgal
+        run: pnpm --filter @haneoka/vega-protocol build && pnpm --filter @haneoka/vega build:core
+      - working-directory: vega-plugin-webgal
+        run: pnpm --filter @haneoka/vega-renderer-pixi build
+      - working-directory: vega-plugin-webgal
+        run: pnpm check
+      - working-directory: vega-plugin-webgal
+        run: pnpm pack --dry-run
