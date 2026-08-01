@@ -33,7 +33,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: vega-plugin-webgal/pnpm-lock.yaml
       - working-directory: vega-plugin-webgal
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
       - working-directory: vega-plugin-webgal
         run: pnpm --filter @haneoka/vega-protocol build && pnpm --filter @haneoka/vega build:core
       - working-directory: vega-plugin-webgal
