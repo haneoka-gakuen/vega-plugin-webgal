@@ -1,8 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-const manifest = JSON.parse(
-  await readFile(new URL("../package.json", import.meta.url), "utf8"),
-);
+const manifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 if (!manifest.repository?.url?.endsWith("/vega-plugin-webgal.git")) {
   throw new Error("package repository must point to the independent WebGAL plugin repository");
 }

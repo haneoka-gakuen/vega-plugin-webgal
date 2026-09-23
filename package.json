@@ -31,7 +31,8 @@
     "dist",
     "LICENSE",
     "README.md",
-    "NOTICE.webgal.md"
+    "NOTICE.webgal.md",
+    "assets"
   ],
   "exports": {
     ".": {
@@ -39,17 +40,27 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./commands": {
+      "types": "./dist/commands.d.ts",
+      "import": "./dist/commands.js",
+      "default": "./dist/commands.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify:package": "node scripts/verify-package.mjs",
     "check": "pnpm run typecheck && pnpm run build && pnpm run verify:package",
-    "prepack": "pnpm run check"
+    "prepack": "pnpm run check",
+    "format": "prettier --write . --ignore-unknown",
+    "format:check": "prettier --check . --ignore-unknown"
   },
   "dependencies": {
-    "@haneoka/vega-renderer-pixi": "workspace:*"
+    "@haneoka/vega-renderer-pixi": "workspace:*",
+    "@haneoka/vega-protocol": "^0.1.0",
+    "popmotion": "^11.0.5",
+    "pixi-filters": "^4.2.0"
   },
   "peerDependencies": {
     "@haneoka/vega": "^0.1.0",
@@ -58,7 +69,8 @@
   "devDependencies": {
     "@haneoka/vega": "workspace:*",
     "pixi.js": "6.5.10",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "prettier": "3.7.4"
   },
   "publishConfig": {
     "access": "public",
@@ -70,10 +82,13 @@
     "capabilities": [
       "render",
       "commands",
-      "theme"
+      "theme",
+      "effect",
+      "ui-slot"
     ],
     "permissions": [
-      "render:webgl"
+      "render:webgl",
+      "ui:dom"
     ],
     "targets": [
       "web",
