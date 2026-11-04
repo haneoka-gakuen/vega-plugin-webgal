@@ -20,6 +20,7 @@ jobs:
         with:
           repository: haneoka-gakuen/vega
           path: vega-plugin-webgal/.dependencies/vega
+          ref: 2fa1b39c1176852db38a45b453c737e8e3439f5d
       - uses: pnpm/action-setup@v6
         with:
           version: 11.14.0
@@ -31,7 +32,8 @@ jobs:
       - working-directory: vega-plugin-webgal
         run: pnpm install --no-frozen-lockfile
       - working-directory: vega-plugin-webgal
-        run: pnpm --filter @haneoka/vega-protocol build && pnpm --filter @haneoka/vega build:core
+        run: pnpm --filter @haneoka/vega-protocol build && pnpm --filter @haneoka/vega
+          build:core
       - working-directory: vega-plugin-webgal
         run: pnpm check
       - working-directory: vega-plugin-webgal
