@@ -29,6 +29,8 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: vega-plugin-webgal/pnpm-lock.yaml
+      - name: Set up locked Vega Rust and WASM tools
+        uses: ./vega-plugin-webgal/.dependencies/vega/.github/actions/setup-wasm
       - working-directory: vega-plugin-webgal
         run: pnpm install --no-frozen-lockfile
       - working-directory: vega-plugin-webgal
