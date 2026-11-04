@@ -1,11 +1,10 @@
 {
   "name": "@haneoka/vega-plugin-webgal",
   "version": "0.1.0",
-  "description": "WebGAL runtime compatibility profile and Pixi renderer for Vega",
+  "description": "WebGAL commands, effects and theme for the shared Vega stage",
   "keywords": [
     "visual-novel",
     "webgal",
-    "pixijs",
     "compatibility",
     "vega"
   ],
@@ -32,6 +31,7 @@
     "LICENSE",
     "README.md",
     "NOTICE.webgal.md",
+    "NOTICE.filters.md",
     "assets"
   ],
   "exports": {
@@ -45,10 +45,15 @@
       "types": "./dist/commands.d.ts",
       "import": "./dist/commands.js",
       "default": "./dist/commands.js"
+    },
+    "./animation": {
+      "types": "./dist/TransformTimeline.d.ts",
+      "import": "./dist/TransformTimeline.js",
+      "default": "./dist/TransformTimeline.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive: true, force: true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify:package": "node scripts/verify-package.mjs",
     "check": "pnpm run typecheck && pnpm run build && pnpm run verify:package",
@@ -57,18 +62,14 @@
     "format:check": "prettier --check . --ignore-unknown"
   },
   "dependencies": {
-    "@haneoka/vega-renderer-pixi": "workspace:*",
     "@haneoka/vega-protocol": "^0.1.0",
-    "popmotion": "^11.0.5",
-    "pixi-filters": "^4.2.0"
+    "popmotion": "^11.0.5"
   },
   "peerDependencies": {
-    "@haneoka/vega": "^0.1.0",
-    "pixi.js": ">=6.3.0 <7"
+    "@haneoka/vega": "^0.1.0"
   },
   "devDependencies": {
     "@haneoka/vega": "workspace:*",
-    "pixi.js": "6.5.10",
     "typescript": "^6.0.3",
     "prettier": "3.7.4"
   },
@@ -80,7 +81,6 @@
     "pluginApi": 1,
     "kind": "compatibility",
     "capabilities": [
-      "render",
       "commands",
       "theme",
       "effect",

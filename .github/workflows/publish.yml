@@ -22,11 +22,6 @@ jobs:
           repository: haneoka-gakuen/vega
           path: vega-plugin-webgal/.dependencies/vega
           persist-credentials: false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: haneoka-gakuen/vega-renderer-pixi
-          path: vega-plugin-webgal/.dependencies/vega-renderer-pixi
-          persist-credentials: false
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
         with:
           version: 11.14.0
@@ -45,7 +40,6 @@ jobs:
         run: |
           pnpm --filter @haneoka/vega-protocol build
           pnpm --filter @haneoka/vega build:core
-          pnpm --filter @haneoka/vega-renderer-pixi build
       - working-directory: vega-plugin-webgal
         run: pnpm check
       - working-directory: vega-plugin-webgal

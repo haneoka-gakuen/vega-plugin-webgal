@@ -2,7 +2,6 @@ packages:
   - "."
   - ".dependencies/vega"
   - ".dependencies/vega/packages/protocol"
-  - ".dependencies/vega-renderer-pixi"
 
 linkWorkspacePackages: true
 
