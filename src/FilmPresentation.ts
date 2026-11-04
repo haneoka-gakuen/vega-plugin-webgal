@@ -1,11 +1,11 @@
-import type { VegaUiSlotContext } from "@haneoka/vega/plugin";
+import type { VegaWebUiSlotContext } from "@haneoka/vega/web";
 import { VEGA_SHELL_CONTROLLER } from "@haneoka/vega/shell";
 
 export const FILM_PRESENTATION_ID = "webgal.film";
 export const FILM_FONT_URL = new URL("../assets/fonts/film.woff2", import.meta.url).href;
 export const FILM_FONT_FAMILY = "VegaWebGalFilm";
 
-export function mountFilmPresentation(host: HTMLElement, context: VegaUiSlotContext) {
+export function mountFilmPresentation(host: HTMLElement, context: VegaWebUiSlotContext) {
   const document = host.ownerDocument,
     view = document.defaultView;
   const root = document.createElement("div"),

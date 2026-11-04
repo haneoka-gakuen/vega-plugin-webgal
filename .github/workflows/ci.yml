@@ -20,10 +20,6 @@ jobs:
         with:
           repository: haneoka-gakuen/vega
           path: vega-plugin-webgal/.dependencies/vega
-      - uses: actions/checkout@v7
-        with:
-          repository: haneoka-gakuen/vega-renderer-pixi
-          path: vega-plugin-webgal/.dependencies/vega-renderer-pixi
       - uses: pnpm/action-setup@v6
         with:
           version: 11.14.0
@@ -36,8 +32,6 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - working-directory: vega-plugin-webgal
         run: pnpm --filter @haneoka/vega-protocol build && pnpm --filter @haneoka/vega build:core
-      - working-directory: vega-plugin-webgal
-        run: pnpm --filter @haneoka/vega-renderer-pixi build
       - working-directory: vega-plugin-webgal
         run: pnpm check
       - working-directory: vega-plugin-webgal

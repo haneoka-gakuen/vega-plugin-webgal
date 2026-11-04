@@ -1,11 +1,10 @@
 import { stockWeatherEffect } from "./StockEffects.js";
+import { executeIntro, mountIntroPresentation } from "./IntroPresentation.js";
 import { FILM_FONT_FAMILY, FILM_FONT_URL, FILM_PRESENTATION_ID, mountFilmPresentation } from "./FilmPresentation.js";
-import { WebGalStoryScene } from "./WebGalStoryScene.js";
 import { STORY_SCREEN_FILTER_PROVIDER } from "@haneoka/vega/renderer-kit";
 import { screenFilterProvider } from "./ScreenFilterProvider.js";
 import { clearScreenTransform, playScreenTransform, setScreenTransform } from "./ScreenTransformPlayer.js";
-import type { PixiTransformFrame, PixiTransformOptions } from "./TransformTimeline.js";
-export { WebGalStoryScene } from "./WebGalStoryScene.js";
+import type { WebGalTransformFrame, WebGalTransformOptions } from "./TransformTimeline.js";
 export * from "./TransformTimeline.js";
 import { WEBGAL_COMMAND_TYPES, WEBGAL_COMMAND_DEFINITIONS } from "./commands.js";
 export * from "./commands.js";
@@ -16,19 +15,15 @@ import {
   type StoryVideoLayout,
   type VegaPlugin,
 } from "@haneoka/vega";
-import { PixiStoryScene, type PixiRendererOptions } from "@haneoka/vega-renderer-pixi";
-
-export const WEBGAL_COMPATIBILITY_BACKEND = "webgal-pixi";
 export const WEBGAL_COMPATIBILITY_THEME = "webgal";
 
-export interface WebGalCompatibilityOptions extends Omit<PixiRendererOptions, "profile" | "backend"> {
+export interface WebGalCompatibilityOptions {
   readonly enableCommands?: boolean;
-  readonly enableRenderer?: boolean;
   readonly enableTheme?: boolean;
   readonly enableUi?: boolean;
 }
 
-export interface WebGalPixiPerform {
+export interface WebGalPerform {
   readonly action:
     "rain" | "snow" | "heavy-snow" | "petals" | "clear" | "blur" | "color-matrix" | "clear-color-matrix" | "transform";
   readonly target?: string;
@@ -114,18 +109,7 @@ const finite = (value: unknown, fallback = 0): number => {
 const firstString = (...values: unknown[]): string =>
   values.map((value) => (typeof value === "string" ? value.trim() : "")).find(Boolean) ?? "";
 
-const pixiScene = (backend: StorySceneBackend): PixiStoryScene => {
-  if (
-    backend instanceof PixiStoryScene ||
-    (typeof (backend as PixiStoryScene).applyColorMatrix === "function" &&
-      typeof (backend as PixiStoryScene).setWorldTransform === "function")
-  ) {
-    return backend as PixiStoryScene;
-  }
-  throw new Error("WebGAL Pixi command requires the webgal-pixi render backend");
-};
-
-const performPayload = (command: AdvCommand): WebGalPixiPerform => {
+const performPayload = (command: AdvCommand): WebGalPerform => {
   const direct = object(command.perform ?? command.payload);
   const action = firstString(
     direct.action,
@@ -142,7 +126,7 @@ const performPayload = (command: AdvCommand): WebGalPixiPerform => {
         ? "heavy-snow"
         : action;
   return {
-    action: normalized as WebGalPixiPerform["action"],
+    action: normalized as WebGalPerform["action"],
     ...(firstString(direct.target, command.targetName)
       ? { target: firstString(direct.target, command.targetName) }
       : {}),
@@ -158,8 +142,8 @@ const performPayload = (command: AdvCommand): WebGalPixiPerform => {
   };
 };
 
-export const executeWebGalPixiPerform = async (
-  payload: WebGalPixiPerform,
+export const executeWebGalPerform = async (
+  payload: WebGalPerform,
   backend: StorySceneBackend,
   signal?: AbortSignal,
 ): Promise<void> => {
@@ -210,8 +194,7 @@ export const executeWebGalPixiPerform = async (
           current: { ...previous?.current, ...matrix },
           planned: { ...previous?.planned, ...matrix },
         });
-      } else if (enabled) pixiScene(backend).applyColorMatrix(values);
-      else pixiScene(backend).clearColorMatrix();
+      } else throw new Error("The active renderer does not support color matrices");
       return;
     }
     case "transform":
@@ -224,13 +207,7 @@ export const executeWebGalPixiPerform = async (
           rotation: (finite(payload.rotation) * Math.PI) / 180,
         };
         backend.writeScreenTransform("stage-main", { current: values, planned: values });
-      } else
-        pixiScene(backend).setWorldTransform({
-          ...(payload.x !== undefined ? { x: payload.x } : {}),
-          ...(payload.y !== undefined ? { y: payload.y } : {}),
-          ...(payload.scale !== undefined ? { scale: payload.scale } : {}),
-          ...(payload.rotation !== undefined ? { rotationDegrees: payload.rotation } : {}),
-        });
+      } else throw new Error("The active renderer does not support screen transforms");
       return;
     default:
       throw new RangeError(`Unsupported WebGAL Pixi action: ${payload.action}`);
@@ -238,7 +215,7 @@ export const executeWebGalPixiPerform = async (
 };
 
 const extensionExecutor =
-  (action: "pixi-init" | "pixi-perform" | "stage-transform" | "film-mode" | "set-transform" | "set-temp-animation") =>
+  (action: "pixi-init" | "pixi-perform" | "stage-transform" | "film-mode" | "set-transform" | "set-temp-animation" | "dialogue-portrait" | "figure-diff") =>
   async (
     command: AdvCommand,
     context: {
@@ -248,8 +225,19 @@ const extensionExecutor =
     },
     signal?: AbortSignal,
   ): Promise<void> => {
+    if (action === "figure-diff") {
+      const target = firstString(command.targetName), source = firstString(command.imageRef);
+      if (!target || !source) return;
+      if (!context.SceneRoot.replaceCharacterImage) throw new Error("The renderer does not support portrait replacement");
+      if (!context.SceneRoot.isCharacterShowing(target)) await context.SceneRoot.placeCharacter(command, finite(command.positionType, 5), context.Model.shouldShortCut ? 0 : 0.3, false);
+      else await context.SceneRoot.replaceCharacterImage(target, source, signal);
+      return;
+    }
+    if (action === "dialogue-portrait") {
+      object(context.state.talk).portraitRef = firstString(command.portraitRef);
+      return;
+    }
     if (action === "set-transform" || action === "set-temp-animation") {
-      const scene = context.SceneRoot as WebGalStoryScene;
       const target = firstString(command.targetName) || "0";
       if (typeof command.sourceIdentity === "string") {
         const pluginState = object(context.state.pluginState),
@@ -262,57 +250,51 @@ const extensionExecutor =
         };
         if (command.forgetSource === true) return;
         if (changed) clearScreenTransform(context.SceneRoot, target);
-        if (
-          !scene.setTransform &&
-          !context.SceneRoot.writeScreenTransform &&
-          !Object.keys(object(command.transform)).length
-        )
-          return;
+        if (!context.SceneRoot.writeScreenTransform && !Object.keys(object(command.transform)).length) return;
       }
-      const options: PixiTransformOptions = {
+      const options: WebGalTransformOptions = {
         duration: context.Model.shouldShortCut ? 0 : Math.max(0, finite(command.durationMs, 500)),
         ease: firstString(command.ease),
         writeDefault: command.writeDefault === true,
         ignoreDefault: command.ignoreDefault === true,
         parallel: command.parallel === true,
         keep: command.keep === true,
+        animationVersion: command.animationVersion === 2 ? 2 : 1,
+        relative: command.relative !== false,
+        inherit: command.inherit !== false,
+        relativeCalc: object(command.relativeCalc) as NonNullable<WebGalTransformOptions["relativeCalc"]>,
         ...(signal ? { signal } : {}),
       };
       if (action === "set-transform") {
-        if (typeof scene.setTransform === "function")
-          await scene.setTransform(target, object(command.transform) as PixiTransformFrame, options);
-        else
-          await setScreenTransform(
-            context.SceneRoot,
-            target,
-            object(command.transform),
-            options,
-            context.state,
-            context.Model.shouldShortCut,
-          );
+        await setScreenTransform(
+          context.SceneRoot,
+          target,
+          object(command.transform),
+          options,
+          context.state,
+          context.Model.shouldShortCut,
+        );
       } else {
         const frames = Array.isArray(command.frames)
-          ? command.frames.map((value) => object(value) as PixiTransformFrame)
+          ? command.frames.map((value) => object(value) as WebGalTransformFrame)
           : [];
-        if (typeof scene.animateTransform === "function") await scene.animateTransform(target, frames, options);
-        else
-          await playScreenTransform(
-            context.SceneRoot,
-            target,
-            frames,
-            options,
-            context.state,
-            context.Model.shouldShortCut,
-          );
+        await playScreenTransform(
+          context.SceneRoot,
+          target,
+          frames,
+          options,
+          context.state,
+          context.Model.shouldShortCut,
+        );
       }
       return;
     }
     if (action === "pixi-init") {
-      await executeWebGalPixiPerform({ action: "clear" }, context.SceneRoot);
+      await executeWebGalPerform({ action: "clear" }, context.SceneRoot);
       return;
     }
     if (action === "pixi-perform") {
-      await executeWebGalPixiPerform(performPayload(command), context.SceneRoot, signal);
+      await executeWebGalPerform(performPayload(command), context.SceneRoot, signal);
       return;
     }
     if (action === "stage-transform") {
@@ -327,13 +309,7 @@ const extensionExecutor =
         context.SceneRoot.writeScreenTransform("stage-main", { current: values, planned: values });
         return;
       }
-      pixiScene(context.SceneRoot).setWorldTransform({
-        x: finite(command.x),
-        y: finite(command.y),
-        scale: finite(command.scale, 1),
-        rotationDegrees: finite(command.rotation),
-      });
-      return;
+      throw new Error("The active renderer does not support screen transforms");
     }
     const pluginState = object(context.state.pluginState),
       compatibility = object(pluginState["haneoka.webgal-runtime"]);
@@ -369,11 +345,10 @@ const extensionExecutor =
   };
 
 export const createWebGalCompatibilityPlugin = (options: WebGalCompatibilityOptions = {}): VegaPlugin => {
-  const enableRenderer = options.enableRenderer !== false;
   const enableTheme = options.enableTheme !== false;
   const enableCommands = options.enableCommands !== false;
   const enableUi = options.enableUi ?? enableCommands;
-  if (!enableRenderer && !enableTheme && !enableCommands && !enableUi) {
+  if (!enableTheme && !enableCommands && !enableUi) {
     throw new TypeError("The WebGAL compatibility plugin must enable at least one contribution");
   }
   return defineVegaPlugin({
@@ -382,28 +357,26 @@ export const createWebGalCompatibilityPlugin = (options: WebGalCompatibilityOpti
       name: "Vega WebGAL Compatibility",
       version: "0.1.0",
       apiVersion: 1,
-      description: "WebGAL-compatible Pixi stage, stock performs and familiar game theme",
+      description: "WebGAL commands, stock effects and game theme for the shared Vega stage",
       capabilities: [
-        ...(enableRenderer ? (["render"] as const) : []),
         ...(enableTheme ? (["theme"] as const) : []),
         ...(enableCommands ? (["commands", "effect"] as const) : []),
         ...(enableUi ? (["ui-slot"] as const) : []),
       ],
     },
     setup(context) {
-      if (enableUi)
-        context.contribute("ui-slot", { id: "webgal.film", slot: "stage-overlay", mount: mountFilmPresentation });
-      if (enableRenderer) {
-        context.contribute("render", {
-          id: "webgal-pixi",
-          name: "WebGAL Pixi",
-          backend: WEBGAL_COMPATIBILITY_BACKEND,
-          create: (sceneContext) =>
-            new WebGalStoryScene(sceneContext, {
-              ...options,
-              backend: WEBGAL_COMPATIBILITY_BACKEND,
-              profile: "webgal",
-            }),
+      if (enableUi) {
+        context.contribute("ui-slot", {
+          id: "webgal.film",
+          slot: "stage-overlay",
+          hostKind: "web",
+          mount: mountFilmPresentation,
+        });
+        context.contribute("ui-slot", {
+          id: "webgal.intro",
+          slot: "stage-overlay",
+          hostKind: "web",
+          mount: mountIntroPresentation,
         });
       }
       if (enableTheme) {
@@ -422,12 +395,29 @@ export const createWebGalCompatibilityPlugin = (options: WebGalCompatibilityOpti
       if (!enableCommands) return;
       context.provide(STORY_SCREEN_FILTER_PROVIDER, screenFilterProvider);
       context.contribute("effect", stockWeatherEffect);
-      for (const { name, action } of WEBGAL_COMMAND_DEFINITIONS) {
+      for (const definition of WEBGAL_COMMAND_DEFINITIONS) {
+        const { action } = definition;
         context.registerCommand({
-          name,
-          schemaVersion: 1,
-          execute: extensionExecutor(action) as never,
+          name: "commandName" in definition ? definition.commandName : definition.name,
+          schemaVersion: "schemaVersion" in definition ? definition.schemaVersion : 1,
+          execute: action === "intro" ? executeIntro : (extensionExecutor(action) as never),
           replaySafe: true,
+          ...(action === "figure-diff" ? {
+            enumerateCommandResources: (command: AdvCommand) => typeof command.imageRef === "string" && command.imageRef
+              ? [{ source: command.imageRef, kind: "texture" as const }] : [],
+          } : {}),
+          ...(action === "dialogue-portrait" ? {
+            enumerateCommandResources: (command: AdvCommand) => typeof command.portraitRef === "string" && command.portraitRef
+              ? [{ source: command.portraitRef, kind: "texture" as const }] : [],
+          } : {}),
+          ...(action === "intro"
+            ? {
+                enumerateCommandResources: (command: AdvCommand) =>
+                  typeof command.backgroundRef === "string" && command.backgroundRef
+                    ? [{ source: command.backgroundRef, kind: "texture" as const }]
+                    : [],
+              }
+            : {}),
           ...(action === "film-mode" && enableUi
             ? {
                 enumerateCommandResources: (command: AdvCommand) =>
